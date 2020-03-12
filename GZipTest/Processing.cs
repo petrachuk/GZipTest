@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading;
 
 namespace GZipTest
@@ -12,7 +13,10 @@ namespace GZipTest
         private const int BlockSize = 1048576;
 
         private static BlockingCollection<DataBlock> SrcQueue { get; set; }
-        private static BlockingCollection<DataBlock> DstQueue { get; set; }
+
+        private long totalBlocks = 0;
+
+        private ResultWriter rw;
         bool _disposed;
 
         private FileInfo SrcFile { get; set; }
@@ -21,8 +25,9 @@ namespace GZipTest
         public Processing()
         {
             SrcQueue = new BlockingCollection<DataBlock>(Environment.ProcessorCount + 1);
-            DstQueue = new BlockingCollection<DataBlock>();
-            SrcFile = new FileInfo("D:\\Distrib\\O365HomePremRetail.img");
+            SrcFile = new FileInfo("C:\\Temp\\с1.jpg");
+            totalBlocks = (SrcFile.Length / BlockSize) + (SrcFile.Length % BlockSize > 0 ? 1 : 0);
+            rw = new ResultWriter(totalBlocks);
             // SrcFile = new FileInfo("D:\\Temp\\voyna-i-mir-tom-1.txt");
         }
 
@@ -53,6 +58,11 @@ namespace GZipTest
             var compress7 = new Thread(Compression);
             compress7.Start();
 
+            
+
+
+            // rw.CompleteAdding();
+
             return 0;
         }
 
@@ -81,22 +91,10 @@ namespace GZipTest
             }
         }
 
-        private static void Compression()
+        private void Compression()
         {
-            while (!SrcQueue.IsCompleted)
+            foreach (var dataBlock in SrcQueue.GetConsumingEnumerable())
             {
-                DataBlock dataBlock;
-
-                try
-                {
-                    dataBlock = SrcQueue.Take();
-                }
-                catch
-                {
-                    Console.WriteLine("!!!");
-                    return;
-                }
-
                 byte[] resultBytes;
 
                 using (var memoryStream = new MemoryStream())
@@ -109,16 +107,15 @@ namespace GZipTest
                     resultBytes = memoryStream.ToArray();
                 }
 
-                /* DstQueue.Add(new DataBlock
+                rw.Add(new DataBlock
                 {
                     Index = dataBlock.Index,
                     Size = resultBytes.Length,
                     Data = resultBytes
-                }); */
+                });
 
                 Console.WriteLine(
                     $"Блок: {dataBlock.Index}; исх: {dataBlock.Size}; новый: {resultBytes.Length}; разница: {dataBlock.Size - resultBytes.Length}; очередь: {SrcQueue.Count}");
-
             }
         }
 
@@ -135,7 +132,6 @@ namespace GZipTest
       
             if (disposing) {
                 SrcQueue?.Dispose();
-                DstQueue?.Dispose();
             }
       
             _disposed = true;
