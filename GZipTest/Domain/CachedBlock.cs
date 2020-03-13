@@ -1,6 +1,6 @@
-﻿namespace GZipTest
+﻿namespace GZipTest.Domain
 {
-    public class ResultBlock
+    public class CachedBlock
     {
         public int Index { get; set; }
         public int Size { get; set; }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GZipTest.Domain;
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
@@ -10,33 +11,42 @@ namespace GZipTest
 {
     public class Processing : IDisposable
     {
-        private const int BlockSize = 1048576;
-
-        private static BlockingCollection<DataBlock> SrcQueue { get; set; }
-
-        private long totalBlocks = 0;
-
-        private ResultWriter rw;
         bool _disposed;
 
+        private BlockingCollection<DataBlock> _src;
+        private ConcurrentDictionary<int, ShortBlock> _dst;
+
+        private const int BlockSize = 1048576;
+
         private FileInfo SrcFile { get; set; }
-        
+        private FileInfo DstFile { get; set; }
+
+        private long TotalBlocks;
 
         public Processing()
         {
-            SrcQueue = new BlockingCollection<DataBlock>(Environment.ProcessorCount + 1);
-            SrcFile = new FileInfo("C:\\Temp\\с1.jpg");
-            totalBlocks = (SrcFile.Length / BlockSize) + (SrcFile.Length % BlockSize > 0 ? 1 : 0);
-            rw = new ResultWriter(totalBlocks);
+            _src = new BlockingCollection<DataBlock>(Environment.ProcessorCount + 1);
+            _dst = new ConcurrentDictionary<int, ShortBlock>();
+
+            SrcFile = new FileInfo("D:\\Distrib\\aimp_4.51.2084.exe");
+            DstFile = new FileInfo("D:\\Temp\\test.txt");
             // SrcFile = new FileInfo("D:\\Temp\\voyna-i-mir-tom-1.txt");
+
+            TotalBlocks = SrcFile.Length / BlockSize + (SrcFile.Length % BlockSize > 0 ? 1 : 0);
         }
 
         public int Start()
         {
+            
+
+
             // Загрузка файла в память
             var read = new Thread(Reader);
             read.Start();
             
+            var compress0 = new Thread(Compression);
+            compress0.Start();
+
             var compress1 = new Thread(Compression);
             compress1.Start();
 
@@ -58,42 +68,20 @@ namespace GZipTest
             var compress7 = new Thread(Compression);
             compress7.Start();
 
-            
-
-
-            // rw.CompleteAdding();
+            var write = new Thread(Writer);
+            write.Start();
 
             return 0;
         }
 
         private void Reader()
         {
-            using (var fileStream = new FileStream(SrcFile.FullName, FileMode.Open))
-            {
-                var index = 0;
-
-                while (fileStream.Position < fileStream.Length)
-                {
-                    var array = new byte[BlockSize];
-                    var length = fileStream.Read(array, 0, BlockSize);
-
-                    SrcQueue.Add(new DataBlock
-                    {
-                        Index = index,
-                        Size = length,
-                        Data = array
-                    });
-
-                    index++;
-                }
-
-                SrcQueue.CompleteAdding();
-            }
+            DecompressedFile.Load(SrcFile.FullName, ref _src);
         }
 
         private void Compression()
         {
-            foreach (var dataBlock in SrcQueue.GetConsumingEnumerable())
+            foreach (var dataBlock in _src.GetConsumingEnumerable())
             {
                 byte[] resultBytes;
 
@@ -107,15 +95,32 @@ namespace GZipTest
                     resultBytes = memoryStream.ToArray();
                 }
 
-                rw.Add(new DataBlock
+                _dst.TryAdd(dataBlock.Index, new ShortBlock
                 {
-                    Index = dataBlock.Index,
                     Size = resultBytes.Length,
                     Data = resultBytes
                 });
 
                 Console.WriteLine(
-                    $"Блок: {dataBlock.Index}; исх: {dataBlock.Size}; новый: {resultBytes.Length}; разница: {dataBlock.Size - resultBytes.Length}; очередь: {SrcQueue.Count}");
+                    $"Блок: {dataBlock.Index}; исх: {dataBlock.Size}; новый: {resultBytes.Length}; разница: {dataBlock.Size - resultBytes.Length}; очередь: {_src.Count}");
+            }
+        }
+
+        private void Writer()
+        {
+            var index = 0;
+
+            using (var fileStream = new FileStream(DstFile.FullName, FileMode.Create, FileAccess.Write))
+            {
+                while (index < TotalBlocks)
+                {
+                    while (_dst.TryRemove(index, out var block))
+                    {
+                        fileStream.Write(block.Data, 0, block.Size);
+                        index++;
+                        Console.WriteLine(index);
+                    }
+                }
             }
         }
 
@@ -131,7 +136,7 @@ namespace GZipTest
             if (_disposed) return; 
       
             if (disposing) {
-                SrcQueue?.Dispose();
+                // SrcQueue?.Dispose();
             }
       
             _disposed = true;
