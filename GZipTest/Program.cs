@@ -1,21 +1,29 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
 namespace GZipTest
 {
-    class Program
+    internal class Program
     {
-        static int Main(string[] args)
+        private static int Main(string[] args)
         {
-            var processing = new Processing();
-            var result = processing.Start();
-            // processing.Dispose();
+            try
+            {
+                var argsParser = new ArgsParser(args);
+                argsParser.TryParse(out var srcFile, out var dstFile, out var mode);
 
-            return result;
+                using (var processing = new Compressing(srcFile, dstFile, mode))
+                {
+                    processing.Start();
+                }
+
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: {ex.Message}");
+                return 1;
+            }
         }
     }
 }

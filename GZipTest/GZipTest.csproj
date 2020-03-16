@@ -43,17 +43,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArgsParser.cs" />
+    <Compile Include="Compressing.cs" />
+    <Compile Include="Domain\IndexedBlock.cs" />
     <Compile Include="Domain\DataBlock.cs" />
-    <Compile Include="DecompressedFile.cs" />
-    <Compile Include="BaseFile.cs" />
-    <Compile Include="Domain\ShortBlock.cs" />
-    <Compile Include="Interfaces\IBlockCollection.cs" />
-    <Compile Include="Interfaces\IFileActions.cs" />
-    <Compile Include="Processing.cs" />
+    <Compile Include="FileInOut.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Domain\CachedBlock.cs" />
-    <Compile Include="CompressedFile.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -1,7 +1,9 @@
 ﻿namespace GZipTest.Domain
 {
-    public class DataBlock : ShortBlock
+    public class DataBlock
     {
-        public int Index { get; set; }
+        public byte[] Data { get; set; }
+
+        public int Size { get; set; }
     }
 }
