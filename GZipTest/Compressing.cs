@@ -24,6 +24,8 @@ namespace GZipTest
         private FileInfo DstFile { get; }
         private ConcurrentDictionary<int, DataBlock> _dst;
 
+        private readonly int TotalBlocks;
+
         #region Constructors
         public Compressing(FileInfo inFile, FileInfo outFile, bool compressing)
         {
@@ -34,6 +36,9 @@ namespace GZipTest
 
             DstFile = outFile;
             _dst = new ConcurrentDictionary<int, DataBlock>();
+
+            TotalBlocks = (int)(SrcFile.Length / DefaultBlockSize) +
+                              (SrcFile.Length % DefaultBlockSize > 0 ? 1 : 0);
         }
         #endregion
 
@@ -44,10 +49,7 @@ namespace GZipTest
 
         private void Writer()
         {
-            var totalBlocks = (int) (SrcFile.Length / DefaultBlockSize) +
-                              (SrcFile.Length % DefaultBlockSize > 0 ? 1 : 0);
-
-            FileInOut.Write(DstFile, ref _dst, totalBlocks, _mode);
+            FileInOut.Write(DstFile, ref _dst, TotalBlocks, _mode);
         }
 
         private void Processing()
@@ -88,18 +90,26 @@ namespace GZipTest
 
         public void Start()
         {
+            //
             // Процесс загрузки файла
+            //
             var reader = new Thread(Reader) {Priority = ThreadPriority.AboveNormal};
             reader.Start();
 
+            //
             // Процесс записи файла
+            //
             var writer = new Thread(Writer);
             writer.Start();
 
-            // Сжатие блоков
-            var threads = new Thread[Environment.ProcessorCount];
+            //
+            // Сжатие блоков + эмуляция "эффективного распараллеливания"
+            //
+            var compressThreadsCount = (TotalBlocks >= 8 * Environment.ProcessorCount) ? Environment.ProcessorCount : 1;
 
-            for (var i = 0; i < Environment.ProcessorCount; i++)
+            var threads = new Thread[compressThreadsCount];
+
+            for (var i = 0; i < compressThreadsCount; i++)
             {
                 threads[i] = new Thread(Processing);
                 threads[i].Start();
@@ -107,7 +117,7 @@ namespace GZipTest
 
             // Дождемся всех
             reader.Join();
-            for (var i = 0; i < 8; i++) threads[i].Join();
+            for (var i = 0; i < compressThreadsCount; i++) threads[i].Join();
             writer.Join();
         }
 

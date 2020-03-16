@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 
 namespace GZipTest
 {
@@ -22,6 +21,7 @@ namespace GZipTest
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine("Use syntax: GZipTest.exe (compress|decompress) source_file_name result_file_name");
                 return 1;
             }
         }

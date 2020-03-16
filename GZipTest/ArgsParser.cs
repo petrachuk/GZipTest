@@ -10,10 +10,12 @@ namespace GZipTest
     {
         private readonly string[] _args;
 
+        #region Constructors
         public ArgsParser(string[] args)
         {
             _args = args;
         }
+        #endregion
 
         public void TryParse(out FileInfo srcFile, out FileInfo dstFile, out bool mode)
         {
@@ -25,7 +27,7 @@ namespace GZipTest
             if(_args[0] != "compress" && _args[0] != "decompress") throw new Exception("Unknown working mode");
 
             //
-            // Ржим работы
+            // Режим работы
             //
             mode = _args[0] == "compress";
 
